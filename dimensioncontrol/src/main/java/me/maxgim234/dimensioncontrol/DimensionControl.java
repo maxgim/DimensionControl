@@ -1,41 +1,41 @@
 package me.maxgim234.dimensioncontrol;
 
-import org.bukkit.Bukkit;
 import org.bukkit.World;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.entity.EntityPortalEvent;
 import org.bukkit.event.player.PlayerPortalEvent;
 import org.bukkit.plugin.java.JavaPlugin;
+
 import java.util.HashSet;
 import java.util.Set;
 
 public final class DimensionControl extends JavaPlugin implements Listener {
 
     private Set<String> closedDimensions;
+    private String endClosedMsg;
+    private String netherClosedMsg;
 
     @Override
     public void onEnable() {
         closedDimensions = new HashSet<>();
-        getConfig().options().copyDefaults(true);
         saveDefaultConfig();
+        reloadConfig();
         closedDimensions.addAll(getConfig().getStringList("closed-dimensions"));
+        endClosedMsg = color(getConfig().getString("messages.end-closed", "&cThe End is currently closed!"));
+        netherClosedMsg = color(getConfig().getString("messages.nether-closed", "&cThe Nether is currently closed!"));
 
         getServer().getPluginManager().registerEvents(this, this);
-
         getLogger().info("DimensionControl has been enabled!");
     }
-
-
-
 
     @Override
     public void onDisable() {
         getConfig().set("closed-dimensions", closedDimensions.stream().toList());
-        saveConfig();
-
         getLogger().info("DimensionControl has been disabled!");
     }
 
@@ -86,7 +86,8 @@ public final class DimensionControl extends JavaPlugin implements Listener {
                 break;
             case "status":
                 boolean isClosed = closedDimensions.contains(dimension);
-                sender.sendMessage("§eThe " + dimension + " is currently " + (isClosed ? "§cclosed" : "§aopen") + "§e.");
+                sender.sendMessage(
+                        "§eThe " + dimension + " is currently " + (isClosed ? "§cclosed" : "§aopen") + "§e.");
                 break;
             default:
                 sender.sendMessage("§eUsage: /" + dimension + " <open|close|status>");
@@ -94,7 +95,11 @@ public final class DimensionControl extends JavaPlugin implements Listener {
         }
     }
 
-    //bypass
+    private String color(String msg) {
+        return msg == null ? "" : msg.replace("&", "§");
+    }
+
+    // bypass
     @EventHandler
     public void onPlayerPortal(PlayerPortalEvent event) {
         Player player = event.getPlayer();
@@ -107,16 +112,39 @@ public final class DimensionControl extends JavaPlugin implements Listener {
         if (toEnvironment == World.Environment.THE_END && closedDimensions.contains("end")) {
             if (!hasBypass && !player.hasPermission("dimensioncontrol.bypass.end")) {
                 event.setCancelled(true);
-                player.sendMessage("§cThe End is currently closed!");
+                player.sendMessage(endClosedMsg);
             }
         }
         // Nether dimension check
         else if (toEnvironment == World.Environment.NETHER && closedDimensions.contains("nether")) {
             if (!hasBypass && !player.hasPermission("dimensioncontrol.bypass.nether")) {
                 event.setCancelled(true);
-                player.sendMessage("§cThe Nether is currently closed!");
+                player.sendMessage(netherClosedMsg);
             }
         }
     }
 
+    @EventHandler
+    public void onEntityPortal(EntityPortalEvent event) {
+        World.Environment toEnvironment = event.getTo().getWorld().getEnvironment();
+
+        // End dimension check
+        if (toEnvironment == World.Environment.THE_END && closedDimensions.contains("end")) {
+            event.setCancelled(true);
+            for (Entity passenger : event.getEntity().getPassengers()) {
+                if (passenger instanceof Player rider) {
+                    rider.sendMessage(endClosedMsg);
+                }
+            }
+        }
+        // Nether dimension check
+        else if (toEnvironment == World.Environment.NETHER && closedDimensions.contains("nether")) {
+            event.setCancelled(true);
+            for (Entity passenger : event.getEntity().getPassengers()) {
+                if (passenger instanceof Player rider) {
+                    rider.sendMessage(netherClosedMsg);
+                }
+            }
+        }
+    }
 }
