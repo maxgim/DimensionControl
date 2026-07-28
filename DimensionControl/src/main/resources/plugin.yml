@@ -1,0 +1,41 @@
+name: DimensionControl
+version: 1.0
+main: me.maxgim234.dimensioncontrol.DimensionControl
+description: Control access to dimensions with bypass permissions.
+api-version: 1.21
+folia-supported: true
+
+commands:
+  end:
+    description: Open/close the End dimension
+    usage: /end <open|close|status>
+    permission: dimensioncontrol.end
+  nether:
+    description: Open/close the Nether dimension
+    usage: /nether <open|close|status>
+    permission: dimensioncontrol.nether
+  dimensioncontrol:
+    description: Master command for DimensionControl
+    usage: /dimensioncontrol <nether-open|nether-close|end-open|end-close|status|reload>
+    permission: dimensioncontrol.admin
+    aliases: [dc]
+
+permissions:
+  dimensioncontrol.admin:
+    description: Access to /dimensioncontrol and all subcommands
+    default: op
+  dimensioncontrol.end:
+    description: Access to /end command
+    default: op
+  dimensioncontrol.nether:
+    description: Access to /nether command
+    default: op
+  dimensioncontrol.bypass:
+    description: Bypass all dimension restrictions
+    default: op
+  dimensioncontrol.bypass.end:
+    description: Bypass End restrictions only
+    default: false
+  dimensioncontrol.bypass.nether:
+    description: Bypass Nether restrictions only
+    default: false
