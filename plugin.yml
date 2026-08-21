@@ -1,0 +1,13 @@
+name: dimensioncontrol
+version: '1.0-SNAPSHOT'
+main: me.maxgim234.dimensioncontrol.DimensionControl
+api-version: '1.21'
+authors: maxgim234
+
+commands:
+  end:
+    description: Open or close the End dimension
+    usage: /end <open|close>
+  nether:
+    description: Open or close the Nether dimension
+    usage: /nether <open|close>

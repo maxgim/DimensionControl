@@ -1,0 +1,7 @@
+# DimensionControl by maxgim234
+# This file stores which dimensions are currently closed
+
+# List of closed dimensions (possible values: 'end', 'nether')
+closed-dimensions:
+# - end
+# - nether
