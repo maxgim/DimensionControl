@@ -3,7 +3,9 @@ package me.maxgim234.dimensioncontrol;
 import io.papermc.paper.event.entity.EntityPortalReadyEvent;
 import org.bstats.bukkit.Metrics;
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.World;
+import org.bukkit.block.BlockFace;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -11,22 +13,28 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityPortalEvent;
 import org.bukkit.event.player.PlayerChangedWorldEvent;
+import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerPortalEvent;
+import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 public final class DimensionControl extends JavaPlugin implements Listener {
 
-    private final Set<String> closed = new HashSet<>();
+    private final Set<String> closed = ConcurrentHashMap.newKeySet();
+    private final Map<UUID, Long> lastPortalDeny = new ConcurrentHashMap<>();
     private final List<String> actions = List.of("open", "close", "status");
     private final List<String> dcCmds = List.of("end-open", "end-close", "nether-open", "nether-close", "status", "reload");
 
@@ -99,6 +107,9 @@ public final class DimensionControl extends JavaPlugin implements Listener {
     }
 
     public void saveData() {
+        if (data == null) {
+            return;
+        }
         data.set("closed-dimensions", new ArrayList<>(closed));
         try {
             data.save(dataFile);
@@ -195,6 +206,28 @@ public final class DimensionControl extends JavaPlugin implements Listener {
 
     @EventHandler
     public void onPlayerPortal(PlayerPortalEvent event) {
+        Player player = event.getPlayer();
+        Location to = event.getTo();
+
+        String dim = to != null && to.getWorld() != null
+                ? dimensionOf(to.getWorld().getEnvironment())
+                : null;
+        if (dim == null) {
+            dim = switch (event.getCause()) {
+                case END_PORTAL -> "end";
+                case NETHER_PORTAL -> "nether";
+                default -> null;
+            };
+        }
+
+        if (dim != null && closed.contains(dim) && !canBypass(player, dim)) {
+            event.setCancelled(true);
+            player.sendMessage(dim.equals("end") ? endMsg : netherMsg);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onPlayerTeleport(PlayerTeleportEvent event) {
         Location to = event.getTo();
         if (to == null || to.getWorld() == null) {
             return;
@@ -206,6 +239,28 @@ public final class DimensionControl extends JavaPlugin implements Listener {
             event.setCancelled(true);
             player.sendMessage(dim.equals("end") ? endMsg : netherMsg);
         }
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onPlayerMove(PlayerMoveEvent event) {
+        Location to = event.getTo();
+        if (to == null) {
+            return;
+        }
+
+        Player player = event.getPlayer();
+        String dim = null;
+        if (closed.contains("end") && !canBypass(player, "end") && isEndPortal(to)) {
+            dim = "end";
+        } else if (closed.contains("nether") && !canBypass(player, "nether") && isNetherPortal(to)) {
+            dim = "nether";
+        }
+        if (dim == null) {
+            return;
+        }
+
+        event.setCancelled(true);
+        denyWithCooldown(player, dim);
     }
 
     @EventHandler
@@ -260,10 +315,35 @@ public final class DimensionControl extends JavaPlugin implements Listener {
         }
 
         Location fallback = event.getFrom().getSpawnLocation();
-        player.getScheduler().run(this, task -> {
+        if (fallback == null) {
+            return;
+        }
+
+        player.getScheduler().runDelayed(this, task -> {
             player.teleport(fallback);
             player.sendMessage(dim.equals("end") ? endMsg : netherMsg);
-        }, null);
+        }, null, 1L);
+    }
+
+    private boolean isEndPortal(Location loc) {
+        return loc.getBlock().getType() == Material.END_PORTAL
+                || loc.getBlock().getRelative(BlockFace.DOWN).getType() == Material.END_PORTAL;
+    }
+
+    private boolean isNetherPortal(Location loc) {
+        return loc.getBlock().getType() == Material.NETHER_PORTAL
+                || loc.getBlock().getRelative(BlockFace.UP).getType() == Material.NETHER_PORTAL;
+    }
+
+    private void denyWithCooldown(Player player, String dim) {
+        long now = System.currentTimeMillis();
+        UUID id = player.getUniqueId();
+        Long last = lastPortalDeny.get(id);
+        if (last != null && now - last < 1500L) {
+            return;
+        }
+        lastPortalDeny.put(id, now);
+        player.sendMessage(dim.equals("end") ? endMsg : netherMsg);
     }
 
     private Player findRider(Entity entity) {
