@@ -4,8 +4,8 @@ import io.papermc.paper.event.entity.EntityPortalReadyEvent;
 import org.bstats.bukkit.Metrics;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.PortalType;
 import org.bukkit.World;
-import org.bukkit.block.BlockFace;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -15,10 +15,12 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.entity.EntityPortalEnterEvent;
 import org.bukkit.event.entity.EntityPortalEvent;
+import org.bukkit.event.entity.EntityTeleportEvent;
 import org.bukkit.event.player.PlayerChangedWorldEvent;
-import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerPortalEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -204,11 +206,101 @@ public final class DimensionControl extends JavaPlugin implements Listener {
         }
     }
 
-    @EventHandler
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onEntityPortalEnter(EntityPortalEnterEvent event) {
+        Location loc = event.getLocation();
+        World world = loc != null ? loc.getWorld() : event.getEntity().getWorld();
+        if (world == null) {
+            return;
+        }
+
+        PortalType portalType = event.getPortalType();
+        World.Environment env = world.getEnvironment();
+        String dim = null;
+
+        if (portalType == PortalType.ENDER) {
+            if (env != World.Environment.THE_END) {
+                dim = "end";
+            }
+        } else if (portalType == PortalType.NETHER) {
+            if (env != World.Environment.NETHER) {
+                dim = "nether";
+            }
+        } else if (loc != null) {
+            Material type = loc.getBlock().getType();
+            if (type == Material.END_PORTAL && env != World.Environment.THE_END) {
+                dim = "end";
+            } else if (type == Material.NETHER_PORTAL && env != World.Environment.NETHER) {
+                dim = "nether";
+            }
+        }
+
+        if (dim == null || !closed.contains(dim)) {
+            return;
+        }
+
+        Entity entity = event.getEntity();
+        if (entity instanceof Player player) {
+            if (canBypass(player, dim)) {
+                return;
+            }
+            event.setCancelled(true);
+            player.setPortalCooldown(20);
+            denyWithCooldown(player, dim);
+        } else {
+            Player rider = findRider(entity);
+            if (rider != null && canBypass(rider, dim)) {
+                return;
+            }
+            event.setCancelled(true);
+            setPortalCooldownRecursive(entity, 20);
+            if (rider != null) {
+                denyWithCooldown(rider, dim);
+            }
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onEntityPortalReady(EntityPortalReadyEvent event) {
+        World world = event.getTargetWorld();
+        String dim = world != null ? dimensionOf(world.getEnvironment()) : null;
+        if (dim == null) {
+            dim = switch (event.getPortalType()) {
+                case ENDER -> "end";
+                case NETHER -> "nether";
+                default -> null;
+            };
+        }
+
+        if (dim == null || !closed.contains(dim)) {
+            return;
+        }
+
+        Entity entity = event.getEntity();
+        if (entity instanceof Player player) {
+            if (canBypass(player, dim)) {
+                return;
+            }
+            event.setCancelled(true);
+            player.setPortalCooldown(20);
+            denyWithCooldown(player, dim);
+        } else {
+            Player rider = findRider(entity);
+            if (rider != null && canBypass(rider, dim)) {
+                return;
+            }
+            event.setCancelled(true);
+            setPortalCooldownRecursive(entity, 20);
+            if (rider != null) {
+                denyWithCooldown(rider, dim);
+            }
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onPlayerPortal(PlayerPortalEvent event) {
         Player player = event.getPlayer();
         Location to = event.getTo();
-
         String dim = to != null && to.getWorld() != null
                 ? dimensionOf(to.getWorld().getEnvironment())
                 : null;
@@ -222,14 +314,24 @@ public final class DimensionControl extends JavaPlugin implements Listener {
 
         if (dim != null && closed.contains(dim) && !canBypass(player, dim)) {
             event.setCancelled(true);
-            player.sendMessage(dim.equals("end") ? endMsg : netherMsg);
+            player.setPortalCooldown(20);
+            denyWithCooldown(player, dim);
         }
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onPlayerTeleport(PlayerTeleportEvent event) {
+        if (event instanceof PlayerPortalEvent) {
+            return;
+        }
+
         Location to = event.getTo();
         if (to == null || to.getWorld() == null) {
+            return;
+        }
+
+        Location from = event.getFrom();
+        if (from.getWorld() != null && from.getWorld().equals(to.getWorld())) {
             return;
         }
 
@@ -237,36 +339,55 @@ public final class DimensionControl extends JavaPlugin implements Listener {
         String dim = dimensionOf(to.getWorld().getEnvironment());
         if (dim != null && closed.contains(dim) && !canBypass(player, dim)) {
             event.setCancelled(true);
-            player.sendMessage(dim.equals("end") ? endMsg : netherMsg);
+            player.setPortalCooldown(20);
+            denyWithCooldown(player, dim);
         }
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
-    public void onPlayerMove(PlayerMoveEvent event) {
+    public void onEntityPortal(EntityPortalEvent event) {
         Location to = event.getTo();
-        if (to == null) {
+        String dim = to != null && to.getWorld() != null
+                ? dimensionOf(to.getWorld().getEnvironment())
+                : null;
+        if (dim == null) {
+            dim = switch (event.getPortalType()) {
+                case ENDER -> "end";
+                case NETHER -> "nether";
+                default -> null;
+            };
+        }
+
+        if (dim == null || !closed.contains(dim)) {
             return;
         }
 
-        Player player = event.getPlayer();
-        String dim = null;
-        if (closed.contains("end") && !canBypass(player, "end") && isEndPortal(to)) {
-            dim = "end";
-        } else if (closed.contains("nether") && !canBypass(player, "nether") && isNetherPortal(to)) {
-            dim = "nether";
-        }
-        if (dim == null) {
+        Entity entity = event.getEntity();
+        Player rider = findRider(entity);
+        if (rider != null && canBypass(rider, dim)) {
             return;
         }
 
         event.setCancelled(true);
-        denyWithCooldown(player, dim);
+        setPortalCooldownRecursive(entity, 20);
+        if (rider != null) {
+            denyWithCooldown(rider, dim);
+        }
     }
 
-    @EventHandler
-    public void onEntityPortal(EntityPortalEvent event) {
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onEntityTeleport(EntityTeleportEvent event) {
+        if (event instanceof EntityPortalEvent) {
+            return;
+        }
+
         Location to = event.getTo();
         if (to == null || to.getWorld() == null) {
+            return;
+        }
+
+        Location from = event.getFrom();
+        if (from.getWorld() != null && from.getWorld().equals(to.getWorld())) {
             return;
         }
 
@@ -275,35 +396,16 @@ public final class DimensionControl extends JavaPlugin implements Listener {
             return;
         }
 
-        event.setCancelled(true);
-        String msg = dim.equals("end") ? endMsg : netherMsg;
-        for (Entity passenger : event.getEntity().getPassengers()) {
-            if (passenger instanceof Player rider) {
-                rider.sendMessage(msg);
-            }
-        }
-    }
-
-    @EventHandler
-    public void onEntityPortalReady(EntityPortalReadyEvent event) {
-        World world = event.getTargetWorld();
-        if (world == null) {
-            return;
-        }
-
-        String dim = dimensionOf(world.getEnvironment());
-        if (dim == null || !closed.contains(dim)) {
-            return;
-        }
-
-        Entity entity = event.getEntity();
-        Player player = entity instanceof Player p ? p : findRider(entity);
-        if (player == null || canBypass(player, dim)) {
+        Player rider = findRider(event.getEntity());
+        if (rider != null && canBypass(rider, dim)) {
             return;
         }
 
         event.setCancelled(true);
-        player.sendMessage(dim.equals("end") ? endMsg : netherMsg);
+        setPortalCooldownRecursive(event.getEntity(), 20);
+        if (rider != null) {
+            denyWithCooldown(rider, dim);
+        }
     }
 
     @EventHandler
@@ -313,26 +415,19 @@ public final class DimensionControl extends JavaPlugin implements Listener {
         if (dim == null || !closed.contains(dim) || canBypass(player, dim)) {
             return;
         }
-
         Location fallback = event.getFrom().getSpawnLocation();
         if (fallback == null) {
             return;
         }
-
         player.getScheduler().runDelayed(this, task -> {
-            player.teleport(fallback);
-            player.sendMessage(dim.equals("end") ? endMsg : netherMsg);
+            player.teleportAsync(fallback);
+            denyWithCooldown(player, dim);
         }, null, 1L);
     }
 
-    private boolean isEndPortal(Location loc) {
-        return loc.getBlock().getType() == Material.END_PORTAL
-                || loc.getBlock().getRelative(BlockFace.DOWN).getType() == Material.END_PORTAL;
-    }
-
-    private boolean isNetherPortal(Location loc) {
-        return loc.getBlock().getType() == Material.NETHER_PORTAL
-                || loc.getBlock().getRelative(BlockFace.UP).getType() == Material.NETHER_PORTAL;
+    @EventHandler
+    public void onPlayerQuit(PlayerQuitEvent event) {
+        lastPortalDeny.remove(event.getPlayer().getUniqueId());
     }
 
     private void denyWithCooldown(Player player, String dim) {
@@ -346,10 +441,21 @@ public final class DimensionControl extends JavaPlugin implements Listener {
         player.sendMessage(dim.equals("end") ? endMsg : netherMsg);
     }
 
+    private void setPortalCooldownRecursive(Entity entity, int cooldown) {
+        entity.setPortalCooldown(cooldown);
+        for (Entity passenger : entity.getPassengers()) {
+            setPortalCooldownRecursive(passenger, cooldown);
+        }
+    }
+
     private Player findRider(Entity entity) {
         for (Entity passenger : entity.getPassengers()) {
             if (passenger instanceof Player rider) {
                 return rider;
+            }
+            Player nestedRider = findRider(passenger);
+            if (nestedRider != null) {
+                return nestedRider;
             }
         }
         return null;
