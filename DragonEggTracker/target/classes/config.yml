@@ -1,0 +1,149 @@
+# ═══════════════════════════════════════════════════════════════
+#               Dragon Egg Tracker Configuration
+#                    Made by maxgim234
+# ═══════════════════════════════════════════════════════════════
+
+
+# Allow Dragon Egg in ender chests
+allow-enderchest-egg: false
+
+# Prevent the Dragon Egg from being placed as a block
+prevent-egg-placement: false
+
+# If false the tracker will track the dragon egg owner even when player is offline
+disable-tracking-if-owner-offline: true
+
+# Lower values is more accurate but more memory usage
+compass-update-interval: 100
+
+# Containers where Dragon Egg CANNOT be placed. If prevent-all-containers is true,
+# it overwrites the prevent-containers too.
+prevent-all-containers: false
+prevent-containers:
+  - HOPPER
+  - DROPPER
+  - DISPENSER
+  - SHULKER_BOX
+# Prevent the Dragon Egg item from being destroyed by any means:
+# If the egg falls into the void it will be teleported back to a safe Y level.
+prevent-egg-destruction: true
+
+egg-void-rescue:
+  # Placeholders: %world%, %x%, %y%, %z%
+  message: "&d&lThe Dragon Egg &r&dfell into the void and was rescued at &e%world% &7[&f%x%&7, &f%y%&7, &f%z%&7]&d!"
+
+
+# ───────────────────────────────────────────────────────────────
+# Egg Pickup Announcement
+# ───────────────────────────────────────────────────────────────
+
+egg-pickup-announcement:
+  enabled: true
+  message: "&d%player% has claimed the Dragon Egg!"
+
+# ───────────────────────────────────────────────────────────────
+# Tracker Compass Recipe
+# ───────────────────────────────────────────────────────────────
+
+tracker-compass-recipe:
+  enabled: true
+  permission: dragoneggtracker.craft
+
+  # Recipe shape (A, B, C are placeholders for ingredients)
+  shape:
+    - "ABA"
+    - "DCD"
+    - "ABA"
+
+  # Ingredients (match the letters in shape above)
+  ingredients:
+    A: DRAGON_BREATH
+    B: ENDER_EYE
+    C: COMPASS
+    D: ENDER_PEARL
+
+# ───────────────────────────────────────────────────────────────
+# Egg Holder Buffs
+# ───────────────────────────────────────────────────────────────
+
+egg-holder-buffs:
+  enabled: true
+
+  # Extra hearts for egg holder (each heart = 2 HP)
+  # 4 extra hearts = +8 max health
+  extra-hearts: 4
+
+  # Potion effects applied to egg holder
+  # Duration: ticks (20 ticks = 1 second, 999999 = ~13.8 hours)
+  # Amplifier: effect level (0 = level I, 1 = level II, etc.)
+  potion-effects:
+    STRENGTH:
+      duration: 999999
+      amplifier: 0
+    FIRE_RESISTANCE:
+      duration: 999999
+      amplifier: 0
+
+
+# ───────────────────────────────────────────────────────────────
+# Economy Rewards (requires Vault + an economy plugin)
+# If Vault/an economy plugin isn't installed, rewards are silently skipped.
+# ───────────────────────────────────────────────────────────────
+
+economy-rewards:
+  # One-time reward the first time a player ever picks up the Dragon Egg
+  first-pickup:
+    enabled: true
+    amount: 500
+    message: "&d&lYou earned &e$%amount% &d&lfor picking up the Dragon Egg for the first time!"
+
+  # Reward paid every hour of continuous holding (resets if the egg changes hands)
+  hourly-holding:
+    enabled: true
+    amount: 100
+    message: "&d&lYou earned &e$%amount% &d&lfor holding the Dragon Egg for an hour!"
+
+# ───────────────────────────────────────────────────────────────
+# GUI Restriction
+# ───────────────────────────────────────────────────────────────
+
+gui-restriction:
+  # If true, the Dragon Egg cannot be clicked/dragged into or out of
+  # virtual GUIs from other plugins (auction houses, teams menus, etc.)
+  block-egg-in-other-guis: true
+
+  # Commands blocked ONLY while the player is holding a Dragon Egg
+  # in their main hand (e.g. selling it via an auction house plugin).
+  # Do not include the leading slash.
+  blocked-sell-commands:
+    - "ah sell"
+    - "auctionhouse sell"
+
+# ───────────────────────────────────────────────────────────────
+# Egg Theft Announcement
+# ───────────────────────────────────────────────────────────────
+
+egg-theft-announcement:
+  enabled: true
+  message: "&c&lThe Dragon Egg was stolen from &f%victim% &c&lby &f%killer%&c&l!"
+
+
+
+# Enable debug logging
+debug-mode: false
+
+# Automatically save egg data every X ticks
+# Set to 0 to disable auto-save (only saves on plugin disable) !not recomended
+auto-save-interval: 6000  # 5 minutes
+
+
+# ───────────────────────────────────────────────────────────────
+# Placeholders (Requires PlaceholderAPI)
+# ───────────────────────────────────────────────────────────────
+# - %dragoneggtracker_holder%: Player who currently holds the Dragon Egg
+# - %dragoneggtracker_state%: State of the Dragon Egg(held/dropped/container/etc)
+# - %dragoneggtracker_world%: World where Dragon Egg is present
+# - %dragoneggtracker_x%/%y%/%z%: Coordinates of the Dragon Egg
+# - %dragoneggtracker_online%: Indicates wether the Dragon Egg holder is online
+# - %dragoneggtracker_top_1%/%2%/%3%: Player who held the Dragon Egg longest
+# - %dragoneggtracker_top_1_time%/%_2_time%/%_3_time%: Duration of Dragon Egg being held

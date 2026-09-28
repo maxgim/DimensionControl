@@ -1,0 +1,27 @@
+name: DragonEggTracker
+version: '2.1.1b'
+main: me.maxgim234.dragonEggTracker.DragonEggTracker
+api-version: '1.21'
+softdepend: [PlaceholderAPI, Vault]
+
+commands:
+  dragon:
+    description: Main Dragon Egg Tracker command
+    usage: |
+      /dragon help - Shows help
+      /dragon owner - Shows who owns the Dragon Egg
+      /dragon top - Shows the top 3 longest-holding players
+      /dragon placeholders - Lists available PlaceholderAPI placeholders
+      /dragon locate - Shows the Dragon Egg location (Admin)
+      /dragon recipe - Displays the Tracker Compass recipe
+      /dragon reload - Reloads the plugin (Admin)
+    aliases: [dragoneggtracker, det]
+
+permissions:
+  dragoneggtracker.admin:
+    description: Allows access to admin commands
+    default: op
+  dragoneggtracker.craft:
+    description: Allows crafting the Dragon Egg Tracker compass
+    default: true
+
