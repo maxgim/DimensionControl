@@ -1,22 +1,11 @@
-#      =================================
-#             DimensionControl
-#               by maxgim234
-#      =================================
-
-
-# Shown to a player when they try to enter a closed dimension
 messages:
   end-closed: "&cThe End is currently closed!"
   nether-closed: "&cThe Nether is currently closed!"
-
-  # Command responses — use {dimension} and {state} as placeholders where applicable
   opened: "&aThe {dimension} has been opened!"
   closed: "&aThe {dimension} has been closed!"
   status-line: "&eThe {dimension} is currently {state}&e."
   no-permission: "&cYou don't have permission to use this command!"
   reloaded: "&aConfig reloaded!"
-
-  # Usage hints
   usage-end: "&eUsage: /end <open|close|status>"
   usage-nether: "&eUsage: /nether <open|close|status>"
   usage-dc: "&eUsage: /dimensioncontrol <nether-open|nether-close|end-open|end-close|status|reload>"

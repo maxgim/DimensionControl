@@ -4,7 +4,7 @@
   <groupId>me.maxgim234</groupId>
   <artifactId>dimensioncontrol</artifactId>
   <name>dimensioncontrol</name>
-  <version>2.2</version>
+  <version>3.0b</version>
   <build>
     <defaultGoal>clean package</defaultGoal>
     <resources>
@@ -41,18 +41,6 @@
             </relocation>
           </relocations>
         </configuration>
-      </plugin>
-      <plugin>
-        <artifactId>maven-shade-plugin</artifactId>
-        <version>3.5.3</version>
-        <executions>
-          <execution>
-            <phase>package</phase>
-            <goals>
-              <goal>shade</goal>
-            </goals>
-          </execution>
-        </executions>
       </plugin>
     </plugins>
   </build>

@@ -1,5 +1,5 @@
 name: DimensionControl
-version: 1.0
+version: 3.0b
 main: me.maxgim234.dimensioncontrol.DimensionControl
 description: Control access to dimensions with bypass permissions.
 api-version: 1.21
